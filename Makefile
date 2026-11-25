@@ -1,0 +1,66 @@
+# Variables
+APP_NAME=devboard
+MAIN_PATH=./cmd/api
+MIGRATE_PATH=./migrations
+DB_URL=postgresql://postgres:password@localhost:5432/devboard?sslmode=disable
+JWT=dev-secret-key-change-in-production-min-32-chars$$
+
+.PHONY: run build test lint migrate-up migrate-down generate tidy help docs
+
+## run: correr la aplicación
+run:
+	GO_ENV=development DATABASE_URL=$(DB_URL) JWT_SECRET=$(JWT) REDIS_ADDR=localhost:6379 go run $(MAIN_PATH)/main.go
+
+## build: compilar el binario
+build:
+	go build -o bin/$(APP_NAME) $(MAIN_PATH)
+
+## test: correr todos los tests con race detector
+test:
+	go test -race -cover ./...
+
+## lint: analizar el código con golangci-lint
+lint:
+	golangci-lint run ./...
+
+## migrate-create: crea una nueva migración (OJO para usarlo su uso es: make migrate-create name=create_users)
+migrate-create:
+	migrate create -ext sql -dir $(MIGRATE_PATH) -seq $(name)
+
+## migrate-up: aplicar todas las migraciones pendientes
+migrate-up:
+	migrate -path $(MIGRATE_PATH) -database "$(DB_URL)" up
+
+## migrate-down: revertir la última migración
+migrate-down:
+	migrate -path $(MIGRATE_PATH) -database "$(DB_URL)" down 1
+
+## generate: correr go generate en todo el proyecto
+generate:
+	sqlc generate
+	go generate ./...
+
+## tidy: limpiar y verificar dependencias
+tidy:
+	go mod tidy
+	go mod verify
+
+## help: mostrar este menú
+help:
+	@grep -E '^##' Makefile | sed 's/## //'
+
+## docker-up: levantar los servicios de desarrollo
+docker-up:
+	docker compose up -d
+
+## docker-down: detener los servicios de desarrollo
+docker-down: 
+	docker compose down
+
+## docker-logs: ver logs de todos los servicios
+docker-logs:
+	docker compose logs -f
+
+## docs: generar documentación OpenAPI con swaggo
+docs: 
+	swag init -g cmd/api/main.go -o docs
