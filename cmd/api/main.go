@@ -3,22 +3,22 @@ package main
 import (
 	"log"
 	"log/slog"
-	"os"
 
 	"github.com/dployar/v2/internal/handler"
+	"github.com/dployar/v2/internal/logger"
 	"github.com/dployar/v2/internal/middlewares"
 	"github.com/dployar/v2/internal/server"
 )
 
 func main() {
-	logger := slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{
-		Level: slog.LevelInfo,
-	}))
+	logger := logger.New(logger.DefaultConfig())
 
-	srv := server.New(":8080")
+	// Aqui arranca el servidor
+	srv := server.New(":8080", logger)
 
 	healthHandler := handler.NewHealthHandler()
 
+	srv.Use(middlewares.Recovery(logger))
 	srv.Use(middlewares.Logger(logger))
 
 	// Registrar las rutas sobre el router del servidor
